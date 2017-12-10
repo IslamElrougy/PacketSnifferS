@@ -23,6 +23,7 @@ public class CaptureScene {
     private static TextArea hexadecimalView;
     private static ObservableList<packet> packets = FXCollections.observableArrayList();
 
+
     public static void display(NetworkInterface networkInterface, String fltr) {
 
         final Stage window = new Stage();
@@ -86,11 +87,12 @@ public class CaptureScene {
         TableColumn<packet, String> infoColumn = new TableColumn<>("Info");
         infoColumn.setMinWidth(200);
         infoColumn.setCellValueFactory(new PropertyValueFactory<>("info"));
-
+        /*
         packets.add(new packet("1", "000000", "src", "dst", "FTP", "20", "info1"));
         packets.add(new packet("2", "000001", "src", "dst", "ARP", "30", "info2"));
         packets.add(new packet("3", "000002", "src", "dst", "TCP", "50", "info3"));
         packets.add(new packet("4", "000003", "src", "dst", "UDP", "70", "info4"));
+        */
         FilteredList<packet> filteredData = new FilteredList<>(packets, p -> true);
 
         filter_TextField.textProperty().addListener((observable, oldValue, newValue) -> {
@@ -159,11 +161,12 @@ public class CaptureScene {
 
     private static void startCapture() {
         captureThread = new Thread() {
+            int packetnumber = 0;
             @Override
             public void run() {
 
                 try{
-                    CAP = JpcapCaptor.openDevice(NetworkInterface, 65535, false, 20);
+                    CAP = JpcapCaptor.openDevice(NetworkInterface, 65535, true, 20);
                 } catch (Exception e) {
                     e.printStackTrace();
                 }
@@ -172,6 +175,7 @@ public class CaptureScene {
                     try {
 
                         switch (filter) {
+
                             case "HTTP":
                                 CAP.setFilter("port 80", true);
                                 break;
@@ -222,7 +226,7 @@ public class CaptureScene {
                         }
 
                         //CAP.getPacket();
-                        CAP.processPacket(1, new PacketHandler(table, detailedView, hexadecimalView));
+                        CAP.processPacket(1, new PacketHandler(packets, detailedView, hexadecimalView,packetnumber++));
                     } catch (Exception e) {
                         e.printStackTrace();
                     }
