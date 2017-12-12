@@ -36,6 +36,25 @@ public class PacketHandler implements PacketReceiver {
         specialPorts.put(143,"IMAP");
         specialPorts.put(993,"IMAPS");
     }
+
+    public static String bytesToHex(byte[] in) {
+        final StringBuilder builder = new StringBuilder();
+        for(byte b : in) {
+            builder.append(String.format("%02x", b));
+        }
+
+        String output = "";
+        for(int i = 1; i < builder.length(); i++)
+        {
+            output += builder.charAt(i);
+            if((i % 2) == 0)
+            {
+                output += " ";
+            }
+        }
+        return output;
+    }
+
     @Override
     public void receivePacket (Packet packet) {
 
@@ -43,8 +62,17 @@ public class PacketHandler implements PacketReceiver {
         //fill table with the received packet
         //Table.getItems().add(new packet("Packet Number", "Time", "Source Address", "Destination Address", "Protocol", "Length", "Information"));
 
+        byte[] d = packet.data;
+        String content = new String(d);
         String data = packet.toString();
-        System.out.println(data);
+        String hex = bytesToHex(d);
+        //if(content.contains("HTTP/1.1"))
+        {
+            System.out.println(data);
+            System.out.println(content);
+            System.out.println(hex);
+        }
+
         packet pack;
         if (data.contains("TCP")){
             System.out.println("TCP");
@@ -88,7 +116,9 @@ public class PacketHandler implements PacketReceiver {
         String no = "" + packetNumber;
 
         String info = "" + SHA + " -> " + THA + "  Len = " + len;
-        packet pack = new packet(no,"" + packet.sec, SPA.toString(),TPA.toString(),protcol,"" + len,info);
+        packet pack = new packet(no,"" + packet.sec, SPA.toString(),TPA.toString(),protcol,"" + len, info, "","", "", "",
+                "", ""+len, packet.header, packet.data, packet);
+
         return pack;
     }
 
@@ -98,7 +128,7 @@ public class PacketHandler implements PacketReceiver {
         int src_port = ((UDPPacket) packet).src_port;
         int dst_port = ((UDPPacket) packet).dst_port;
         int length = ((UDPPacket) packet).length;
-        int len = ((UDPPacket) packet).len ;
+        int len = ((UDPPacket) packet).len;
 
         String protcol = "UDP";
         if (specialPorts.containsKey(dst_port)){
@@ -109,7 +139,9 @@ public class PacketHandler implements PacketReceiver {
         String no = "" + packetNumber;
 
         String info = "" + dst_port + " -> " + dst_port + "  Len = " + len;
-        packet pack = new packet(no,"" + packet.sec, sourceAddress.getHostAddress().toString(),destinationAddress.getHostAddress().toString(),protcol,"" + length,info);
+        packet pack = new packet(no,"" + packet.sec, sourceAddress.getHostAddress().toString(),destinationAddress.getHostAddress().toString(),protcol,"" + length, info,
+                String.valueOf(((UDPPacket) packet).dst_port), String.valueOf(((UDPPacket) packet).src_port), "", "",
+                "", ""+len, packet.header, ((UDPPacket)packet).data, packet);
 
         return pack;
     }
@@ -123,7 +155,7 @@ public class PacketHandler implements PacketReceiver {
         long ack_num = ((TCPPacket) packet).ack_num;
         int window = ((TCPPacket) packet).window;
         int length = ((TCPPacket) packet).length;
-        int len = ((TCPPacket) packet).len ;
+        int len = ((TCPPacket) packet).len;
 
         String protcol = "TCP";
         if (specialPorts.containsKey(dst_port)){
@@ -134,7 +166,9 @@ public class PacketHandler implements PacketReceiver {
         String no = "" + packetNumber;
 
         String info = "" + dst_port + " -> " + dst_port + "  Seq = " + sequence + "  Ack = " + ack_num + " Win = " + window + "  Len = " + len;
-        packet pack = new packet(no,"" + packet.sec, sourceAddress.toString(),destinationAddress.toString(),protcol,"" + length,info);
+        packet pack = new packet(no,"" + packet.sec, sourceAddress.toString(),destinationAddress.toString(),protcol,"" + length, info, String.valueOf(((TCPPacket) packet).dst_port),
+                String.valueOf(((TCPPacket) packet).src_port), String.valueOf(((TCPPacket) packet).sequence), String.valueOf(((TCPPacket) packet).ack_num),
+                String.valueOf(((TCPPacket) packet).window), ""+len, packet.header, packet.data, packet);
 
         return pack;
     }

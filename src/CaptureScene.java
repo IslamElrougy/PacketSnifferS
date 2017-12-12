@@ -1,26 +1,38 @@
+import javafx.application.Platform;
 import javafx.collections.FXCollections;
 import javafx.collections.ObservableList;
 import javafx.collections.transformation.FilteredList;
 import javafx.collections.transformation.SortedList;
+import javafx.event.EventHandler;
+import javafx.geometry.HPos;
 import javafx.geometry.Insets;
 import javafx.scene.Scene;
 import javafx.scene.control.*;
 import javafx.scene.control.cell.PropertyValueFactory;
 import javafx.scene.layout.GridPane;
+import javafx.scene.text.Font;
+import javafx.scene.text.FontWeight;
 import javafx.stage.Modality;
 import javafx.stage.Stage;
+import javafx.stage.WindowEvent;
 import jpcap.JpcapCaptor;
+import jpcap.JpcapWriter;
 import jpcap.NetworkInterface;
+
+import java.io.IOException;
 
 public class CaptureScene {
 
     private static Thread captureThread;
     private static String filter;
     private static JpcapCaptor CAP;
+    private static JpcapWriter WRITER;
     private static NetworkInterface NetworkInterface;
     private static TableView<packet> table = new TableView<>();
     private static TextArea detailedView;
     private static TextArea hexadecimalView;
+    private static Button startButton;
+    private static Button saveButton;
     private static ObservableList<packet> packets = FXCollections.observableArrayList();
 
 
@@ -41,24 +53,65 @@ public class CaptureScene {
         MenuBar menuBar = new MenuBar();
         GridPane.setConstraints(menuBar, 0, 0);
 
-        Label start_Label = new Label("Start");
-        start_Label.setOnMouseClicked(e -> {
-            if (start_Label.getText().equals("Start")) {
+        Label packetTableLabel = new Label("Captured Packets Table");
+        packetTableLabel.setFont(Font.font("", FontWeight.BOLD, 14));
+        grid.add(packetTableLabel, 0, 2, 3, 1);
+
+        Label detailedLabel = new Label("Packet Details");
+        detailedLabel.setFont(Font.font("", FontWeight.BOLD, 14));
+        grid.add(detailedLabel, 0, 4, 3, 1);
+
+        Label hexaLabel = new Label("Packet Raw Data");
+        hexaLabel.setFont(Font.font("", FontWeight.BOLD, 14));
+        grid.add(hexaLabel, 0, 6, 3, 1);
+
+        startButton = new Button("Start Capturing");
+        startButton.setMinWidth(130);
+        startButton.setMaxHeight(50);
+        startButton.setFont(Font.font(14));
+        startButton.setStyle("-fx-focus-color: grey; -fx-faint-focus-color: transparent");
+        startButton.setOnMouseClicked(e -> {
+            if (startButton.getText().equals("Start Capturing")) {
                 startCapture();
-                start_Label.setText("Stop");
+                startButton.setText("Stop Capturing");
             } else {
                 stopCapture();
-                start_Label.setText("Start");
+                startButton.setText("Start Capturing");
             }
         });
+        grid.add(startButton, 0, 0, 1, 1);
 
-        Menu start_Menu = new Menu();
-        start_Menu.setGraphic(start_Label);
-        menuBar.getMenus().add(start_Menu);
+        saveButton = new Button("Save Packets");
+        saveButton.setMinWidth(130);
+        saveButton.setMaxHeight(50);
+        saveButton.setFont(Font.font(14));
+        saveButton.setStyle("-fx-focus-color: grey; -fx-faint-focus-color: transparent");
+        saveButton.setOnMouseClicked(e -> {
+            try {
+                WRITER = JpcapWriter.openDumpFile(CAP,"CapturedPackets.pcap");
+                ObservableList<packet> rows = table.getItems();
+                for(packet each : rows)
+                {
+                    WRITER.writePacket(each.getPackObject());
+                }
+                //WRITER.close();
+            }
+            catch (IOException i)
+            {
+                i.printStackTrace();
+            }
+            catch (Exception s)
+            {
+                s.printStackTrace();
+            }
+        });
+        grid.add(saveButton, 87, 0, 1, 1);
 
         final TextField filter_TextField = new TextField();
         filter_TextField.setPromptText("Apply a display filter");
         GridPane.setConstraints(filter_TextField, 0, 1);
+        filter_TextField.setMinWidth(1140);
+        grid.add(filter_TextField, 0, 1, 2, 1);
 
         TableColumn<packet, String> numberColumn = new TableColumn<>("No.");
         numberColumn.setMinWidth(100);
@@ -82,17 +135,12 @@ public class CaptureScene {
 
         TableColumn<packet, String> lengthColumn = new TableColumn<>("Length");
         lengthColumn.setMinWidth(100);
-        lengthColumn.setCellValueFactory(new PropertyValueFactory<>("length"));
+        lengthColumn.setCellValueFactory(new PropertyValueFactory<>("TLayerLength"));
 
         TableColumn<packet, String> infoColumn = new TableColumn<>("Info");
         infoColumn.setMinWidth(200);
         infoColumn.setCellValueFactory(new PropertyValueFactory<>("info"));
-        /*
-        packets.add(new packet("1", "000000", "src", "dst", "FTP", "20", "info1"));
-        packets.add(new packet("2", "000001", "src", "dst", "ARP", "30", "info2"));
-        packets.add(new packet("3", "000002", "src", "dst", "TCP", "50", "info3"));
-        packets.add(new packet("4", "000003", "src", "dst", "UDP", "70", "info4"));
-        */
+
         FilteredList<packet> filteredData = new FilteredList<>(packets, p -> true);
 
         filter_TextField.textProperty().addListener((observable, oldValue, newValue) -> {
@@ -111,7 +159,7 @@ public class CaptureScene {
                     return true; // Filter match
                 } else if (packet.getProtocol().toLowerCase().contains(lowerCaseFilter)) {
                     return true; // Filter match
-                } else if (packet.getLength().toLowerCase().contains(lowerCaseFilter)) {
+                } else if (packet.getIPLength().toLowerCase().contains(lowerCaseFilter)) {
                     return true; // Filter match
                 } else if (packet.getInfo().toLowerCase().contains(lowerCaseFilter)) {
                     return true; // Filter match
@@ -124,39 +172,112 @@ public class CaptureScene {
         sortedData.comparatorProperty().bind(table.comparatorProperty());
         table.setItems(sortedData);
 
+        table.getColumns().clear();
         table.getColumns().addAll(numberColumn, timeColumn, sourceColumn, destinationColumn, protocolColumn, lengthColumn, infoColumn);
         GridPane.setConstraints(table, 0, 3);
+        table.setMinWidth(1140);
+        table.setMaxHeight(350);
+        grid.add(table, 0, 3, 2, 1);
 
         table.setRowFactory( tv -> {
             TableRow<packet> row = new TableRow<>();
             row.setOnMouseClicked(event -> {
                 if (event.getClickCount() == 2 && (!row.isEmpty()) ) {
                     packet rowData = row.getItem();
-                    detailedView.setText("Show detailed view of packet no." + rowData.getNumber());
-                    hexadecimalView.setText("Show hexadecimal view of packet no." + rowData.getNumber());
+                    String dataTransport = "";
+                    String dataPayload = "";
+                    if(rowData.getProtocol() == "TCP") {
+                        dataTransport = "Transmission Control Protocol\n";
+                        dataTransport += "Source Port: " + rowData.getSource_port() + "\n";
+                        dataTransport += "Destination Port: " + rowData.getDest_port() + "\n";
+                        dataTransport += "TCP Segment Length: " + rowData.getTLayerLength() + "\n";
+                        dataTransport += "Sequence Number: " + rowData.getSequence() + "\n";
+                        dataTransport += "Acknowledgment Number: " + rowData.getAckNum() + "\n";
+                        dataTransport += "Header Length: " + rowData.getHeader().length + "\n";
+                        dataTransport += "Window Size Value: " + rowData.getWindow() + "\n";
+                        dataTransport += "TCP Payload Size: " + rowData.getPayload().length + "\n\n";
+                    }
+                    else if(rowData.getProtocol() == "UDP")
+                    {
+                        dataTransport = "User Datagram Protocol\n";
+                        dataTransport += "Source Port: " + rowData.getSource_port() + "\n";
+                        dataTransport += "Destination Port: " + rowData.getDest_port() + "\n";
+                        dataTransport += "UDP Segment Length: " + rowData.getTLayerLength() + "\n\n";
+                    }
+
+                    if(rowData.getPayload().length > 1)
+                    {
+                        if(new String(rowData.getPayload()).contains("HTTP"))
+                        {
+                            dataPayload = "Hypertext Transfer Protocol\n";
+                            String payload = new String(rowData.getPayload());
+                            dataPayload += payload;
+                        }
+                        else if(rowData.getProtocol() == "DNS")
+                        {
+                            dataTransport = "User Datagram Protocol\n";
+                            dataTransport += "Source Port: " + rowData.getSource_port() + "\n";
+                            dataTransport += "Destination Port: " + rowData.getDest_port() + "\n";
+                            dataTransport += "UDP Segment Length: " + rowData.getTLayerLength() + "\n\n";
+                            dataPayload = "Domain Name System Protocol\n";
+                            String payload = new String(rowData.getPayload());
+                            dataPayload += payload;
+                        }
+                    }
+
+                    String viewData = dataTransport + dataPayload;
+                    detailedView.setText(viewData);
+
+                    String hexaHeader = PacketHandler.bytesToHex(rowData.getHeader());
+                    String hexaPayload = PacketHandler.bytesToHex(rowData.getPayload());
+                    String viewHexa = hexaHeader + " " + hexaPayload;
+                    hexadecimalView.setText(viewHexa);
                 }
             });
-            return row ;
+            return row;
         });
-
 
         //TODO
         //use this TextAres to display details of the packet
         detailedView = new TextArea();
         detailedView.setEditable(false);
+        detailedView.setWrapText(true);
+        detailedView.setMinWidth(1140);
+        detailedView.setMaxHeight(250);
         GridPane.setConstraints(detailedView, 0, 8);
+        grid.add(detailedView, 0, 5, 2, 1);
 
         //TODO
         //use this TextAres to display hexadecimal Value of the packet
         hexadecimalView = new TextArea();
         hexadecimalView.setEditable(false);
+        hexadecimalView.setWrapText(true);
+        hexadecimalView.setMinWidth(1140);
+        hexadecimalView.setMaxHeight(250);
         GridPane.setConstraints(hexadecimalView, 0, 12);
+        grid.add(hexadecimalView, 0, 7, 2, 1);
 
-        grid.getChildren().addAll(menuBar, filter_TextField, table, detailedView, hexadecimalView);
-
-        Scene scene = new Scene(grid, 800, 650);
+        //grid.getChildren().addAll(startButton, saveButton, filter_TextField, table, detailedView, hexadecimalView);
+        GridPane.setHalignment(saveButton, HPos.RIGHT);
+        Scene scene = new Scene(grid, 1150, 900);
         window.setScene(scene);
-        window.showAndWait();
+        window.setResizable(false);
+        //window.showAndWait();
+        window.show();
+        window.setOnHiding(new EventHandler<WindowEvent>() {
+            @Override
+            public void handle(WindowEvent event) {
+                Platform.runLater(new Runnable() {
+                    @Override
+                    public void run() {
+                        // Clear the packet observable list to clear the table for the next capturing session after closing the window.
+                        packets.clear();
+                    }
+                });
+            }
+
+        });
+
     }
 
     private static void startCapture() {
