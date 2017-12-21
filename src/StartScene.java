@@ -11,7 +11,6 @@ import jpcap.NetworkInterface;
 
 public class StartScene extends Application{
 
-    private Stage window;
     private ListView<String> interfaces;
 
     public static void main(String[] args) {
@@ -19,7 +18,7 @@ public class StartScene extends Application{
     }
 
     public void start(Stage primaryStage) throws Exception {
-        window = primaryStage;
+        Stage window = primaryStage;
         window.setTitle("Welcome");
 
         GridPane grid = new GridPane();
@@ -57,10 +56,10 @@ public class StartScene extends Application{
         grid.add(interfaces, 1, 4, 10, 2);
 
         interfaces.setOnMouseClicked(e -> {
-            CaptureScene.display(NETWORK_INTERFACES[interfaces.getSelectionModel().getSelectedIndex()], filter_ChoiceBox.getValue());
+            if (e.getClickCount() == 2) {
+                CaptureScene.display(NETWORK_INTERFACES[interfaces.getSelectionModel().getSelectedIndex()], filter_ChoiceBox.getValue());
+            }
         });
-
-        //grid.getChildren().addAll(capture_Label, filter_Label, filter_ChoiceBox, interfaces);
 
         Scene scene = new Scene(grid, 530, 500);
         window.setScene(scene);

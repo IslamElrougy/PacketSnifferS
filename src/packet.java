@@ -19,21 +19,6 @@ public class packet {
     private byte[] payload;
     private Packet packObject;
 
-    public packet(){
-        this.number = "";
-        this.time = "";
-        this.source = "";
-        this.destination = "";
-        this.protocol = "";
-        this.IPlength = "";
-        this.info = "";
-        this.source_port = "";
-        this.dest_port = "";
-        this.sequence = "";
-        this.ackNum = "";
-        this.window = "";
-    }
-
     public packet(String n, String t, String s, String d, String p, String l, String i, String d_port, String s_port, String seq,
                   String ack, String win, String len, byte[] head, byte[] load, Packet object)
     {

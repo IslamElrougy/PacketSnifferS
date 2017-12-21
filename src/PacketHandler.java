@@ -1,108 +1,50 @@
-import javafx.collections.FXCollections;
 import javafx.collections.ObservableList;
-import javafx.scene.control.TextArea;
 import jpcap.PacketReceiver;
 import jpcap.packet.ARPPacket;
 import jpcap.packet.Packet;
 import jpcap.packet.TCPPacket;
 import jpcap.packet.UDPPacket;
-
 import java.net.InetAddress;
 import java.util.HashMap;
 import java.util.Map;
 
 public class PacketHandler implements PacketReceiver {
 
-    ObservableList<packet> Table;
-    TextArea detailedView;
-    TextArea hexadecimalView;
-    int packetNumber = 0;
-    Map<Integer,String> specialPorts = new HashMap<>();
-    ObservableList<packet> packets = FXCollections.observableArrayList();
+    private int packetNumber = 0;
+    private ObservableList<packet> Table;
+    private Map<Integer,String> specialPorts = new HashMap<>();
 
-    PacketHandler (ObservableList<packet> table, TextArea details, TextArea hexadecimal , int packetNumber) {
-        Table = table;
-        detailedView = details;
-        hexadecimalView = hexadecimal;
+    PacketHandler (ObservableList<packet> table) {
+        this.Table = table;
         this.packetNumber = Table.size();
-        specialPorts.put(8,"HTTP");
-        specialPorts.put(53,"DNS");
-        specialPorts.put(443,"SSL");
-        specialPorts.put(21,"FTP");
-        specialPorts.put(22,"SSH");
-        specialPorts.put(23,"Telnet");
-        specialPorts.put(25,"Telnet");
-        specialPorts.put(110,"POP3");
-        specialPorts.put(143,"IMAP");
-        specialPorts.put(993,"IMAPS");
-    }
-
-    public static String bytesToHex(byte[] in) {
-        final StringBuilder builder = new StringBuilder();
-        for(byte b : in) {
-            builder.append(String.format("%02x", b));
-        }
-
-        String output = "";
-        for(int i = 1; i < builder.length(); i++)
-        {
-            output += builder.charAt(i);
-            if((i % 2) == 0)
-            {
-                output += " ";
-            }
-        }
-        return output;
+        this.specialPorts.put(8,"HTTP");
+        this.specialPorts.put(53,"DNS");
+        this.specialPorts.put(443,"SSL");
+        this.specialPorts.put(21,"FTP");
+        this.specialPorts.put(22,"SSH");
+        this.specialPorts.put(23,"Telnet");
+        this.specialPorts.put(25,"Telnet");
+        this.specialPorts.put(110,"POP3");
+        this.specialPorts.put(143,"IMAP");
+        this.specialPorts.put(993,"IMAPS");
     }
 
     @Override
     public void receivePacket (Packet packet) {
-
-        //TODo
-        //fill table with the received packet
-        //Table.getItems().add(new packet("Packet Number", "Time", "Source Address", "Destination Address", "Protocol", "Length", "Information"));
-
-        byte[] d = packet.data;
-        String content = new String(d);
         String data = packet.toString();
-        String hex = bytesToHex(d);
-        //if(content.contains("HTTP/1.1"))
-        {
-            System.out.println(data);
-            System.out.println(content);
-            System.out.println(hex);
-        }
 
         packet pack;
         if (data.contains("TCP")){
-            System.out.println("TCP");
             pack = parseTCP(packet);
-        }else if (data.contains("UDP")){
-            System.out.println("UDP");
+        } else if (data.contains("UDP")){
             pack = parseUDP(packet);
-
-        }else if (data.contains("ARP")){
+        } else if (data.contains("ARP")){
             pack = parseARP(packet);
-        }
-        else
+        } else {
             return;
-        packets.add(pack);
+        }
+
         Table.add(pack);
-
-        // Table.notifyAll();
-        /*
-            HTTP 80
-            DNS 53
-            ARP > ARP REQUEST 70:9f:2d:82:65:e8(/192.168.1.1) -> 00:00:00:00:00:00(/192.168.1.2)
-            ARP REPLY 78:45:61:c9:7c:8b(/192.168.1.2) -> 70:9f:2d:82:65:e8(/192.168.1.1)
-
-            Arraylist
-
-            diplay packets in columns
-
-            filter works on packets captured
-       */
-
     }
 
     private packet parseARP(Packet packet) {
@@ -110,16 +52,12 @@ public class PacketHandler implements PacketReceiver {
         String SPA = ((ARPPacket) packet).getSenderProtocolAddress().toString();
         String THA = ((ARPPacket) packet).getTargetHardwareAddress().toString();
         String TPA = ((ARPPacket) packet).getTargetProtocolAddress().toString();
-        String protcol = "UDP";
 
         int len = ((ARPPacket) packet).len ;
-        String no = "" + packetNumber;
 
         String info = "" + SHA + " -> " + THA + "  Len = " + len;
-        packet pack = new packet(no,"" + packet.sec, SPA.toString(),TPA.toString(),protcol,"" + len, info, "","", "", "",
-                "", ""+len, packet.header, packet.data, packet);
 
-        return pack;
+        return new packet("" + packetNumber,"" + packet.sec, SPA, TPA,"UDP","" + len, info, "","", "", "","", "" + len, packet.header, packet.data, packet);
     }
 
     private packet parseUDP(Packet packet) {
@@ -130,20 +68,17 @@ public class PacketHandler implements PacketReceiver {
         int length = ((UDPPacket) packet).length;
         int len = ((UDPPacket) packet).len;
 
-        String protcol = "UDP";
+        String protocol = "UDP";
         if (specialPorts.containsKey(dst_port)){
-            protcol = specialPorts.get(dst_port);
+            protocol = specialPorts.get(dst_port);
         }else if (specialPorts.containsKey(src_port)){
-            protcol = specialPorts.get(src_port);
+            protocol = specialPorts.get(src_port);
         }
-        String no = "" + packetNumber;
 
         String info = "" + dst_port + " -> " + dst_port + "  Len = " + len;
-        packet pack = new packet(no,"" + packet.sec, sourceAddress.getHostAddress().toString(),destinationAddress.getHostAddress().toString(),protcol,"" + length, info,
-                String.valueOf(((UDPPacket) packet).dst_port), String.valueOf(((UDPPacket) packet).src_port), "", "",
-                "", ""+len, packet.header, ((UDPPacket)packet).data, packet);
 
-        return pack;
+        return new packet("" + packetNumber,"" + packet.sec, sourceAddress.getHostAddress(), destinationAddress.getHostAddress(), protocol,"" + length, info,
+                String.valueOf(((UDPPacket) packet).dst_port), String.valueOf(((UDPPacket) packet).src_port),"","","","" + len, packet.header, ((UDPPacket)packet).data, packet);
     }
 
     private packet parseTCP(Packet packet) {
@@ -157,21 +92,18 @@ public class PacketHandler implements PacketReceiver {
         int length = ((TCPPacket) packet).length;
         int len = ((TCPPacket) packet).len;
 
-        String protcol = "TCP";
+        String protocol = "TCP";
         if (specialPorts.containsKey(dst_port)){
-            protcol = specialPorts.get(dst_port);
+            protocol = specialPorts.get(dst_port);
         }else if (specialPorts.containsKey(src_port)){
-            protcol = specialPorts.get(src_port);
+            protocol = specialPorts.get(src_port);
         }
-        String no = "" + packetNumber;
 
         String info = "" + dst_port + " -> " + dst_port + "  Seq = " + sequence + "  Ack = " + ack_num + " Win = " + window + "  Len = " + len;
-        packet pack = new packet(no,"" + packet.sec, sourceAddress.toString(),destinationAddress.toString(),protcol,"" + length, info, String.valueOf(((TCPPacket) packet).dst_port),
-                String.valueOf(((TCPPacket) packet).src_port), String.valueOf(((TCPPacket) packet).sequence), String.valueOf(((TCPPacket) packet).ack_num),
-                String.valueOf(((TCPPacket) packet).window), ""+len, packet.header, packet.data, packet);
 
-        return pack;
+        return new packet("" + packetNumber,"" + packet.sec, sourceAddress.toString(), destinationAddress.toString(), protocol,"" + length, info,
+                String.valueOf(((TCPPacket) packet).dst_port), String.valueOf(((TCPPacket) packet).src_port), String.valueOf(((TCPPacket) packet).sequence), String.valueOf(((TCPPacket) packet).ack_num),
+                String.valueOf(((TCPPacket) packet).window), "" + len, packet.header, packet.data, packet);
     }
 
 }
-

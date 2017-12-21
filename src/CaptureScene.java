@@ -18,8 +18,8 @@ import javafx.stage.WindowEvent;
 import jpcap.JpcapCaptor;
 import jpcap.JpcapWriter;
 import jpcap.NetworkInterface;
-
 import java.io.IOException;
+
 
 public class CaptureScene {
 
@@ -32,9 +32,7 @@ public class CaptureScene {
     private static TextArea detailedView;
     private static TextArea hexadecimalView;
     private static Button startButton;
-    private static Button saveButton;
     private static ObservableList<packet> packets = FXCollections.observableArrayList();
-
 
     public static void display(NetworkInterface networkInterface, String fltr) {
 
@@ -81,29 +79,22 @@ public class CaptureScene {
         });
         grid.add(startButton, 0, 0, 1, 1);
 
-        saveButton = new Button("Save Packets");
+        Button saveButton = new Button("Save Packets");
         saveButton.setMinWidth(130);
         saveButton.setMaxHeight(50);
         saveButton.setFont(Font.font(14));
         saveButton.setStyle("-fx-focus-color: grey; -fx-faint-focus-color: transparent");
         saveButton.setOnMouseClicked(e -> {
             try {
-                WRITER = JpcapWriter.openDumpFile(CAP,"CapturedPackets.pcap");
+                WRITER = JpcapWriter.openDumpFile(CAP, "CapturedPackets.pcap");
                 ObservableList<packet> rows = table.getItems();
-                for(packet each : rows)
-                {
+                for (packet each : rows) {
                     WRITER.writePacket(each.getPackObject());
                 }
-                //WRITER.close();
-            }
-            catch (IOException i)
-            {
+            } catch (IOException i) {
                 i.printStackTrace();
             }
-            catch (Exception s)
-            {
-                s.printStackTrace();
-            }
+
         });
         grid.add(saveButton, 87, 0, 1, 1);
 
@@ -150,21 +141,21 @@ public class CaptureScene {
                 }
                 String lowerCaseFilter = newValue.toLowerCase();
                 if (packet.getNumber().toLowerCase().contains(lowerCaseFilter)) {
-                    return true; // Filter match
+                    return true;
                 } else if (packet.getTime().toLowerCase().contains(lowerCaseFilter)) {
-                    return true; // Filter match
+                    return true;
                 } else if (packet.getSource().toLowerCase().contains(lowerCaseFilter)) {
-                    return true; // Filter match
+                    return true;
                 } else if (packet.getDestination().toLowerCase().contains(lowerCaseFilter)) {
-                    return true; // Filter match
+                    return true;
                 } else if (packet.getProtocol().toLowerCase().contains(lowerCaseFilter)) {
-                    return true; // Filter match
+                    return true;
                 } else if (packet.getIPLength().toLowerCase().contains(lowerCaseFilter)) {
-                    return true; // Filter match
+                    return true;
                 } else if (packet.getInfo().toLowerCase().contains(lowerCaseFilter)) {
-                    return true; // Filter match
+                    return true;
                 }
-                return false; // Does not match
+                return false;
             });
         });
 
@@ -186,7 +177,7 @@ public class CaptureScene {
                     packet rowData = row.getItem();
                     String dataTransport = "";
                     String dataPayload = "";
-                    if(rowData.getProtocol() == "TCP") {
+                    if(rowData.getProtocol().equals("TCP")) {
                         dataTransport = "Transmission Control Protocol\n";
                         dataTransport += "Source Port: " + rowData.getSource_port() + "\n";
                         dataTransport += "Destination Port: " + rowData.getDest_port() + "\n";
@@ -196,9 +187,7 @@ public class CaptureScene {
                         dataTransport += "Header Length: " + rowData.getHeader().length + "\n";
                         dataTransport += "Window Size Value: " + rowData.getWindow() + "\n";
                         dataTransport += "TCP Payload Size: " + rowData.getPayload().length + "\n\n";
-                    }
-                    else if(rowData.getProtocol() == "UDP")
-                    {
+                    } else if(rowData.getProtocol().equals("UDP")) {
                         dataTransport = "User Datagram Protocol\n";
                         dataTransport += "Source Port: " + rowData.getSource_port() + "\n";
                         dataTransport += "Destination Port: " + rowData.getDest_port() + "\n";
@@ -207,29 +196,24 @@ public class CaptureScene {
 
                     if(rowData.getPayload().length > 1)
                     {
-                        if(new String(rowData.getPayload()).contains("HTTP"))
-                        {
+                        if(new String(rowData.getPayload()).contains("HTTP")) {
                             dataPayload = "Hypertext Transfer Protocol\n";
-                            String payload = new String(rowData.getPayload());
-                            dataPayload += payload;
-                        }
-                        else if(rowData.getProtocol() == "DNS")
-                        {
+                            dataPayload += new String(rowData.getPayload());
+                        } else if(rowData.getProtocol().equals("DNS")) {
                             dataTransport = "User Datagram Protocol\n";
                             dataTransport += "Source Port: " + rowData.getSource_port() + "\n";
                             dataTransport += "Destination Port: " + rowData.getDest_port() + "\n";
                             dataTransport += "UDP Segment Length: " + rowData.getTLayerLength() + "\n\n";
                             dataPayload = "Domain Name System Protocol\n";
-                            String payload = new String(rowData.getPayload());
-                            dataPayload += payload;
+                            dataPayload += new String(rowData.getPayload());
                         }
                     }
 
                     String viewData = dataTransport + dataPayload;
                     detailedView.setText(viewData);
 
-                    String hexaHeader = PacketHandler.bytesToHex(rowData.getHeader());
-                    String hexaPayload = PacketHandler.bytesToHex(rowData.getPayload());
+                    String hexaHeader = bytesToHex(rowData.getHeader());
+                    String hexaPayload = bytesToHex(rowData.getPayload());
                     String viewHexa = hexaHeader + " " + hexaPayload;
                     hexadecimalView.setText(viewHexa);
                 }
@@ -237,8 +221,6 @@ public class CaptureScene {
             return row;
         });
 
-        //TODO
-        //use this TextAres to display details of the packet
         detailedView = new TextArea();
         detailedView.setEditable(false);
         detailedView.setWrapText(true);
@@ -247,8 +229,6 @@ public class CaptureScene {
         GridPane.setConstraints(detailedView, 0, 8);
         grid.add(detailedView, 0, 5, 2, 1);
 
-        //TODO
-        //use this TextAres to display hexadecimal Value of the packet
         hexadecimalView = new TextArea();
         hexadecimalView.setEditable(false);
         hexadecimalView.setWrapText(true);
@@ -257,12 +237,11 @@ public class CaptureScene {
         GridPane.setConstraints(hexadecimalView, 0, 12);
         grid.add(hexadecimalView, 0, 7, 2, 1);
 
-        //grid.getChildren().addAll(startButton, saveButton, filter_TextField, table, detailedView, hexadecimalView);
+
         GridPane.setHalignment(saveButton, HPos.RIGHT);
         Scene scene = new Scene(grid, 1150, 900);
         window.setScene(scene);
         window.setResizable(false);
-        //window.showAndWait();
         window.show();
         window.setOnHiding(new EventHandler<WindowEvent>() {
             @Override
@@ -270,7 +249,6 @@ public class CaptureScene {
                 Platform.runLater(new Runnable() {
                     @Override
                     public void run() {
-                        // Clear the packet observable list to clear the table for the next capturing session after closing the window.
                         packets.clear();
                     }
                 });
@@ -281,22 +259,20 @@ public class CaptureScene {
     }
 
     private static void startCapture() {
+        detailedView.setText("");
+        hexadecimalView.setText("");
+        packets.clear();
         captureThread = new Thread() {
-            int packetnumber = 0;
             @Override
             public void run() {
-
                 try{
                     CAP = JpcapCaptor.openDevice(NetworkInterface, 65535, true, 20);
                 } catch (Exception e) {
                     e.printStackTrace();
                 }
-
                 while (!isInterrupted()) {
                     try {
-
                         switch (filter) {
-
                             case "HTTP":
                                 CAP.setFilter("port 80", true);
                                 break;
@@ -345,9 +321,7 @@ public class CaptureScene {
                             default:
                                 break;
                         }
-
-                        //CAP.getPacket();
-                        CAP.processPacket(1, new PacketHandler(packets, detailedView, hexadecimalView,packetnumber++));
+                        CAP.processPacket(1, new PacketHandler(packets));
                     } catch (Exception e) {
                         e.printStackTrace();
                     }
@@ -361,5 +335,19 @@ public class CaptureScene {
         captureThread.interrupt();
     }
 
-}
+    private static String bytesToHex(byte[] in) {
+        StringBuilder builder = new StringBuilder();
+        StringBuilder output = new StringBuilder("");
+        for (byte b : in) {
+            builder.append(String.format("%02X", b));
+        }
+        for(int i = 0 ; i < builder.length() ; i++) {
+            output.append(builder.charAt(i));
+            if((i % 2) == 0) {
+                output.append(" ");
+            }
+        }
+        return output.toString();
+    }
 
+}
